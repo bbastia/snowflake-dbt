@@ -3,15 +3,16 @@ name: "Snowflake DevOps and Terraform Workflow"
 on:
   push:
     branches:
-      - main
+      - main # Trigger workflow only on pushes to the main branch
     paths:
       - 'migrations/**'
       - '*.tf'
   pull_request:
+    branches:
+      - main # Trigger workflow only for pull requests targeting the main branch
     paths:
       - '*.tf'
       - 'migrations/**'
-
   workflow_dispatch:
 
 jobs:
