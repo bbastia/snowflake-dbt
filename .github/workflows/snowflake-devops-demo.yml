@@ -37,7 +37,6 @@ jobs:
         continue-on-error: true
 
       - name: Set Terraform Format Status
-        if: always() # Always runs to capture status
         run: echo "TERRAFORM_FMT_STATUS=${{ steps.fmt.outcome }}" >> $GITHUB_ENV
 
       - name: Terraform Init
@@ -57,6 +56,9 @@ jobs:
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -auto-approve
+
+      - name: Debug Terraform State
+        run: terraform state list
 
       # === Schemachange Steps ===
 
@@ -82,7 +84,7 @@ jobs:
           echo "Step 2: Running schemachange"
           schemachange -f $GITHUB_WORKSPACE/migrations -a $SF_ACCOUNT -u $SF_USERNAME -r $SF_ROLE -w $SF_WAREHOUSE -d $SF_DATABASE -c $SF_DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table
 
-      # === Terraform Plan Status and Comment on Pull Requests ===
+      # === Plan Status and PR Comments ===
 
       - uses: actions/github-script@v5
         if: github.event_name == 'pull_request'
@@ -90,10 +92,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fmtStatus = process.env.TERRAFORM_FMT_STATUS || 'unknown';
-            const initStatus = `✅ ${'{steps.init.outcome}'}` || 'unknown';
-            const validateStatus = `✅ ${'{steps.validate.outcome}'}` || 'unknown';
-            const planStatus = `✅ ${'{steps.plan.outcome}'}` || 'unknown';
-            const planOutput = `${'{steps.plan.outputs.stdout}'}` || 'No plan available.';
+            const initStatus = steps.init.outcome || 'unknown';
+            const validateStatus = steps.validate.outcome || 'unknown';
+            const planStatus = steps.plan.outcome || 'unknown';
+            const planOutput = steps.plan.outputs.stdout || 'No plan available.';
 
             github.issues.createComment({
               issue_number: context.issue.number,
@@ -116,3 +118,8 @@ jobs:
                 _Pusher: @${{ github.actor }}_
               `
             });
+
+      - name: Debug Snowflake Schema
+        run: |
+          echo "Checking schemas in SIGMOID_DB"
+          snowsql -a $SF_ACCOUNT -u $SF_USERNAME -r $SF_ROLE -w $SF_WAREHOUSE -d $SF_DATABASE -q "SHOW SCHEMAS IN DATABASE SIGMOID_DB;"
