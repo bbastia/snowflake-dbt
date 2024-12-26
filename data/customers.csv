@@ -1,0 +1,4 @@
+ID,NAME,EMAIL,PHONE,CREATED_AT
+1,John Doe,john.doe@example.com,1234567890,2024-12-01 10:00:00
+2,Jane Smith,jane.smith@example.com,0987654321,2024-12-02 11:00:00
+3,Bob Johnson,bob.johnson@example.com,5678901234,2024-12-03 12:00:00
