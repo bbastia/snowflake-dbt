@@ -1,19 +1,19 @@
 name: "Snowflake DevOps and Terraform Workflow"
 
 on:
-    push:
-      branches:
-        - main 
-      paths:
-        - 'migrations/**'
-        - '*.tf' 
-    pull_request:
-      branches:
-        - main 
-      paths:
-        - '*.tf'
-        - 'migrations/**'
-    workflow_dispatch: 
+  push:
+    branches:
+      - main # Trigger workflow only on pushes to the main branch
+    paths:
+      - 'migrations/**'
+      - '*.tf'
+  pull_request:
+    branches:
+      - main # Trigger workflow only for pull requests targeting the main branch
+    paths:
+      - '*.tf'
+      - 'migrations/**'
+  workflow_dispatch:
 
 jobs:
   devops-and-terraform:
@@ -53,26 +53,12 @@ jobs:
         run: terraform validate -no-color
 
       - name: Terraform Plan
-        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: terraform plan -no-color
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: terraform apply -auto-approve
-
-      - name: Install SnowSQL
-        run: |
-          curl -O https://sfc-repo.snowflakecomputing.com/snowsql/bootstrap/1.2/linux_x86_64/snowsql
-          chmod +x snowsql
-          sudo mv snowsql /usr/local/bin/
-
-      - name: Verify SnowSQL Installation
-        run: snowsql --version
-
-      - name: Debug Snowflake Schema
-        run: |
-          echo "Checking schemas in SIGMOID_DB"
-          snowsql -a $SF_ACCOUNT -u $SF_USERNAME -r $SF_ROLE -w $SF_WAREHOUSE -d $SF_DATABASE -q "SHOW SCHEMAS IN DATABASE SIGMOID_DB;"
 
       # === Schemachange Steps ===
 
