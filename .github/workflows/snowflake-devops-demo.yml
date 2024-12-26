@@ -1,19 +1,19 @@
 name: "Snowflake DevOps and Terraform Workflow"
 
 on:
-  push:
-    branches:
-      - main # Trigger workflow only on pushes to the main branch
-    paths:
-      - 'migrations/**'
-      - '*.tf'
-  pull_request:
-    branches:
-      - main # Trigger workflow only for pull requests targeting the main branch
-    paths:
-      - '*.tf'
-      - 'migrations/**'
-  workflow_dispatch:
+    push:
+      branches:
+        - main # Automatically trigger on pushes to the main branch
+      paths:
+        - 'migrations/**'
+        - '*.tf' # Trigger only if specified files are changed
+    pull_request:
+      branches:
+        - main # Trigger workflow for pull requests targeting the main branch
+      paths:
+        - '*.tf'
+        - 'migrations/**'
+    workflow_dispatch: # Allow manual triggering of the workflow
 
 jobs:
   devops-and-terraform:
