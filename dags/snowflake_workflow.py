@@ -1,12 +1,18 @@
 from airflow import DAG
 from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
-from cosmos.providers.dbt.task_group import DbtTaskGroup
-from airflow.utils.dates import days_ago
+from cosmos import DbtTaskGroup, ProjectConfig, ProfileConfig, ExecutionConfig
+from cosmos.profiles import SnowflakeUserPasswordProfileMapping
+from datetime import datetime
+from pathlib import Path
+import os
 
+# Snowflake connection ID
 SNOWFLAKE_CONN_ID = "snowflake_default"
-DBT_PROJECT_DIR = "/path/to/dbt"  # Path to your DBT project
-DBT_PROFILES_DIR = "/path/to/profiles"  # Path to DBT profiles
 
+# Path to your dbt project (inside the Docker container)
+DBT_PROJECT_PATH = Path("/usr/local/airflow/dbt")
+
+# Default arguments for the DAG
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
@@ -14,23 +20,34 @@ default_args = {
     "email_on_retry": False,
 }
 
+# Profile configuration for Cosmos
+profile_config = ProfileConfig(
+    profile_name="default",
+    target_name="dev",
+    profile_mapping=SnowflakeUserPasswordProfileMapping(
+        conn_id=SNOWFLAKE_CONN_ID,
+        profile_args={
+            "database": "SIGMOID_DB",
+        },
+    ),
+)
+
+# Define the DAG
 with DAG(
-    dag_id="snowflake_dbt_workflow",
+    dag_id="snowflake_copy_and_dbt_workflow",
     default_args=default_args,
-    description="Run COPY INTO commands and DBT tasks",
-    schedule_interval=None,
-    start_date=days_ago(1),
+    description="Copy data into Snowflake and run dbt transformations",
+    schedule_interval="@daily",
+    start_date=datetime(2023, 9, 10),
     catchup=False,
 ) as dag:
-
     # Step 1: COPY INTO RAW.CUSTOMERS
     copy_customers = SnowflakeOperator(
         task_id="copy_customers",
         sql="""
         COPY INTO RAW.CUSTOMERS
         FROM @RAW_STAGE/customers.csv
-        FILE_FORMAT = (FORMAT_NAME = FORMAT.CSV_FORMAT)
-        SKIP_HEADER = 1;
+        FILE_FORMAT = (FORMAT_NAME = FORMAT.CSV_FORMAT);
         """,
         snowflake_conn_id=SNOWFLAKE_CONN_ID,
     )
@@ -41,8 +58,7 @@ with DAG(
         sql="""
         COPY INTO RAW.MENU_ITEMS
         FROM @RAW_STAGE/menu_items.csv
-        FILE_FORMAT = (FORMAT_NAME = FORMAT.CSV_FORMAT)
-        SKIP_HEADER = 1;
+        FILE_FORMAT = (FORMAT_NAME = FORMAT.CSV_FORMAT);
         """,
         snowflake_conn_id=SNOWFLAKE_CONN_ID,
     )
@@ -53,23 +69,33 @@ with DAG(
         sql="""
         COPY INTO RAW.ORDERS
         FROM @RAW_STAGE/orders.csv
-        FILE_FORMAT = (FORMAT_NAME = FORMAT.CSV_FORMAT)
-        SKIP_HEADER = 1;
+        FILE_FORMAT = (FORMAT_NAME = FORMAT.CSV_FORMAT);
         """,
         snowflake_conn_id=SNOWFLAKE_CONN_ID,
     )
 
-    # Step 4: Run DBT using Cosmos Task Group
+    # Step 4: Define the dbt Task Group using Cosmos
     dbt_task_group = DbtTaskGroup(
-        group_id="dbt_tasks",
-        dbt_project_dir=DBT_PROJECT_DIR,
-        dbt_profiles_dir=DBT_PROFILES_DIR,
-        dbt_args={
-            "type": "postgres",
-            "run": {},
-            "test": {},
+        group_id="dbt_transformations",
+        project_config=ProjectConfig(
+            DBT_PROJECT_PATH,
+        ),
+        profile_config=profile_config,
+        execution_config=ExecutionConfig(
+            dbt_executable_path=f"{os.environ['AIRFLOW_HOME']}/dbt_venv/bin/dbt",
+        ),
+        operator_args={
+            "install_deps": True,
+            "full_refresh": True,
+            "env": {
+                "PYTHONPATH": f"{os.environ['AIRFLOW_HOME']}/dbt_venv/lib/python3.12/site-packages",
+            },
+            "vars": {
+                "debug": "true"
+            } 
         },
+
     )
 
-    # Define task dependencies
+    # Set task dependencies
     [copy_customers, copy_menu_items, copy_orders] >> dbt_task_group

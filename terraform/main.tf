@@ -31,7 +31,7 @@ resource "snowflake_schema" "raw_schema" {
 
 resource "snowflake_schema" "staging_schema" {
   database = snowflake_database.demo_db.name
-  name     = "STAGING"
+  name     = "STAGGING"
   comment  = "Schema for staging data in SIGMOID_DB"
 }
 

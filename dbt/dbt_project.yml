@@ -3,10 +3,19 @@ version: '1.0.0'
 profile: 'snowflake'
 config-version: 2
 
+macro-paths: ["macros"] 
+
 models:
-  raw:
-    materialized: table
-  core:
-    materialized: table
-  marts:
-    materialized: view
+  snowflake_dbt:
+    raw:
+      +materialized: table
+      +schema: STAGGING
+    dim:
+      +materialized: table
+      +schema: DIM 
+    fact:
+      +materialized: table
+      +schema: FACT 
+    marts:
+      +materialized: view
+      +schema: AGGR 

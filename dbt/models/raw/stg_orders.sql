@@ -1,3 +1,5 @@
+{{ config(materialized='table') }}
+    
 SELECT
     ID,
     CUSTOMER_ID,
@@ -6,4 +8,4 @@ SELECT
     TOTAL_AMOUNT,
     ORDER_DATE,
     CREATED_AT
-FROM {{ source('RAW', 'ORDERS') }};
+FROM {{ source('RAW', 'ORDERS') }}
